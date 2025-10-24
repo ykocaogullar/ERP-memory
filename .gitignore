@@ -1,2 +1,5 @@
 documents/
-
+.env
+__pycache__/
+agentic_sundae/
+private_docs/
