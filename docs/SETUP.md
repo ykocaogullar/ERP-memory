@@ -262,15 +262,51 @@ ENTITY_EMBEDDING_ENABLED=true
 SEMANTIC_SCORE_WEIGHT=0.2
 ```
 
+## Development Setup
+
+### Install Python Dependencies
+
+```bash
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Verify Installation
+
+```bash
+# Activate virtual environment
+source .venv/bin/activate
+
+# Run core component tests
+python tests/test_core_components.py
+```
+
+Expected output:
+- ✅ Configuration loads correctly
+- ✅ Database connection works
+- ✅ All models validate
+- ✅ Embedding service functional
+
+---
+
 ## Next Steps
 
-1. Explore the database schema
-2. Review the implementation plan: `documents/IMPLEMENTATION_PLAN.md`
-3. Check the implementation checklist: `documents/IMPLEMENTATION_CHECKLIST.md`
-4. Start building API endpoints (Phase 3)
+After setup is complete:
+
+1. **Explore the architecture**: See `docs/ARCHITECTURE.md` for system design and components
+2. **Review the database schema**: Connect to database and explore tables
+3. **Check implementation plan**: `documents/IMPLEMENTATION_PLAN.md` for development roadmap
+4. **Start developing**: Continue with Phase 4 - Entity Linking & Semantic Layer
+
+---
 
 ## Support
 
 For issues or questions, refer to:
+- Architecture documentation: `docs/ARCHITECTURE.md`
 - Implementation Plan: `documents/IMPLEMENTATION_PLAN.md`
-- Take-home Assignment: `documents/Take‑Home Ontology-Aware Memory System for an LLM.md`
+- Original Assignment: `documents/Take‑Home Ontology-Aware Memory System for an LLM.md`
