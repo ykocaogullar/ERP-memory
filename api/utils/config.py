@@ -23,6 +23,24 @@ class Settings(BaseSettings):
     DB_USER: str = Field(default="erp_user", description="Database user")
     DB_PASSWORD: str = Field(default="erp_password", description="Database password")
     
+    # LLM Configuration
+    LLM_PROVIDER: str = Field(
+        default="openai",
+        description="LLM provider (openai, anthropic, fallback)"
+    )
+    LLM_MODEL: str = Field(
+        default="gpt-4o-mini",
+        description="LLM model name"
+    )
+    LLM_MAX_TOKENS: int = Field(
+        default=2000,
+        description="Maximum tokens for LLM response"
+    )
+    LLM_TEMPERATURE: float = Field(
+        default=0.7,
+        description="LLM temperature for response generation"
+    )
+    
     # OpenAI Configuration
     OPENAI_API_KEY: str = Field(..., description="OpenAI API key (required)")
     EMBEDDING_MODEL: str = Field(
@@ -33,9 +51,11 @@ class Settings(BaseSettings):
         default=1536,
         description="Embedding vector dimension"
     )
-    LLM_MODEL: str = Field(
-        default="gpt-4o-mini",
-        description="OpenAI chat model"
+    
+    # Anthropic Configuration
+    ANTHROPIC_API_KEY: Optional[str] = Field(
+        default=None,
+        description="Anthropic API key (optional)"
     )
     
     # Application Settings
