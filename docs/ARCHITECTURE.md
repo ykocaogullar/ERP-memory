@@ -43,7 +43,10 @@ ERP-memory/
 │   │   ├── memory.py        # Memory system entities (Entity, Memory, etc.)
 │   │   └── api.py           # API request/response models
 │   ├── services/            # Business logic services
-│   │   └── embeddings.py    # OpenAI embedding service
+│   │   ├── embeddings.py    # OpenAI embedding service
+│   │   ├── entity_extractor.py      # Entity extraction & linking
+│   │   ├── semantic_relationships.py # Semantic triple extraction
+│   │   └── domain_queries.py        # ERP data queries
 │   ├── routes/              # FastAPI route handlers (Phase 6)
 │   └── utils/               # Utility modules
 │       ├── config.py        # Configuration management
@@ -291,6 +294,125 @@ similarity = service.cosine_similarity(vec1, vec2)
 - Good for: Entity names, common queries (avoid repeated API calls)
 - Not good for: Unique user messages (every message is different)
 - Cache cleared on restart (not persistent)
+
+---
+
+### Entity Extraction Service (`api/services/entity_extractor.py`)
+
+**Purpose**: Extract and link entities from conversational text to domain database records
+
+**Features**:
+- **Deterministic extraction**: Regex patterns for SO/INV/WO IDs
+- **Fuzzy matching**: Trigram similarity for customer names
+- **Semantic extraction**: Business term recognition
+- **Confidence scoring**: Multi-factor scoring with recency boost
+- **Entity embeddings**: Optional 1536-dimensional vectors for semantic similarity
+- **PII-safe hashing**: Secure entity name hashing
+
+**Usage**:
+```python
+from api.services.entity_extractor import get_entity_extractor
+
+extractor = get_entity_extractor()
+
+# Extract entities from text
+entities = extractor.extract_entities(
+    "Check status of SO-1001 for Gai Media", 
+    user_id="user123", 
+    session_id="session456"
+)
+
+# Store entities in database
+entity_ids = extractor.store_entities(entities)
+
+# Find existing entity
+entity = extractor.find_entity_by_name("Gai Media", "user123")
+```
+
+**Entity Types**:
+- `customer`: Business customers (Gai Media, PC Boiler)
+- `sales_order`: Sales order IDs (SO-1001, SO-2002)
+- `invoice`: Invoice IDs (INV-1009, INV-2201)
+- `work_order`: Work order IDs (WO-1234)
+- `business_term`: General business concepts (delivery, payment)
+
+---
+
+### Semantic Relationship Builder (`api/services/semantic_relationships.py`)
+
+**Purpose**: Extract and store semantic triples (subject-predicate-object) from database schema and conversations
+
+**Features**:
+- **Schema relationships**: Extract from foreign key constraints
+- **Conversational relationships**: Pattern-based extraction from user text
+- **Relationship storage**: Store as semantic triples with embeddings
+- **Relationship search**: Semantic similarity search for relationships
+
+**Usage**:
+```python
+from api.services.semantic_relationships import get_semantic_relationship_builder
+
+builder = get_semantic_relationship_builder()
+
+# Build relationships from database schema
+schema_rels = builder.build_schema_relationships()
+
+# Extract from conversation
+conv_rels = builder.extract_conversational_relationships(
+    "Gai Media prefers Friday deliveries", 
+    entities
+)
+
+# Store relationships
+rel_ids = builder.store_relationships(schema_rels + conv_rels)
+```
+
+**Relationship Types**:
+- `issued_to`: Sales order → Customer
+- `belongs_to`: Invoice → Sales order
+- `pays`: Payment → Invoice
+- `prefers`: Customer → Preference
+- `requires`: Customer → Requirement
+- `has_policy`: Customer → Policy
+
+---
+
+### Domain Query Service (`api/services/domain_queries.py`)
+
+**Purpose**: Query ERP database and format results for LLM context
+
+**Features**:
+- **Comprehensive data access**: Customer, order, invoice, payment data
+- **Financial summaries**: Calculate balances, overdue amounts
+- **LLM context formatting**: Structure data as semantic triples
+- **Search capabilities**: Fuzzy customer search, status-based queries
+
+**Usage**:
+```python
+from api.services.domain_queries import get_domain_query_service
+
+service = get_domain_query_service()
+
+# Get comprehensive customer data
+customer_data = service.get_customer_data("customer-uuid")
+
+# Get invoice with payment history
+invoice_data = service.get_invoice_data("invoice-uuid")
+
+# Search customers
+customers = service.search_customers("Gai Media")
+
+# Format for LLM context
+context = service.format_for_llm_context(customer_data, "customer")
+```
+
+**Query Methods**:
+- `get_customer_data()`: Complete customer profile with orders, invoices, tasks
+- `get_sales_order_data()`: Order details with work orders and invoices
+- `get_invoice_data()`: Invoice with payment history and balance
+- `get_overdue_invoices()`: Find overdue invoices by days threshold
+- `get_work_orders_by_status()`: Filter work orders by status
+- `get_customer_financial_summary()`: Financial overview for customer
 
 ---
 
