@@ -46,7 +46,12 @@ ERP-memory/
 │   │   ├── embeddings.py    # OpenAI embedding service
 │   │   ├── entity_extractor.py      # Entity extraction & linking
 │   │   ├── semantic_relationships.py # Semantic triple extraction
-│   │   └── domain_queries.py        # ERP data queries
+│   │   ├── domain_queries.py        # ERP data queries
+│   │   ├── memory_vectorizer.py     # Memory extraction & analysis
+│   │   ├── memory_storage.py        # Memory storage & PII redaction
+│   │   ├── retrieval_synthesis.py   # Hybrid search & context synthesis
+│   │   ├── prompt_builder.py        # LLM prompt construction
+│   │   └── llm_service.py           # LLM integration & response generation
 │   ├── routes/              # FastAPI route handlers (Phase 6)
 │   └── utils/               # Utility modules
 │       ├── config.py        # Configuration management
@@ -413,6 +418,212 @@ context = service.format_for_llm_context(customer_data, "customer")
 - `get_overdue_invoices()`: Find overdue invoices by days threshold
 - `get_work_orders_by_status()`: Filter work orders by status
 - `get_customer_financial_summary()`: Financial overview for customer
+
+---
+
+### Memory Vectorizer Service (`api/services/memory_vectorizer.py`)
+
+**Purpose**: Analyze conversation turns and extract memory-worthy facts for storage
+
+**Features**:
+- **Memory type extraction**: Episodic, semantic, profile, commitment, todo memories
+- **Pattern-based extraction**: Regex patterns for preferences, requirements, policies
+- **Importance scoring**: Multi-factor scoring with recency boost
+- **Memory consolidation**: Deduplication and merging of similar memories
+- **Entity linking**: Connect memories to extracted entities
+
+**Memory Types**:
+- **Episodic** (30-day TTL): What happened in conversations
+- **Semantic** (no expiration): Facts, preferences, policies
+- **Profile** (no expiration): User/entity characteristics
+- **Commitment** (90-day TTL): Promises and agreements
+- **Todo** (14-day TTL): Action items and tasks
+
+**Usage**:
+```python
+from api.services.memory_vectorizer import get_memory_vectorizer
+
+vectorizer = get_memory_vectorizer()
+
+# Analyze conversation turn
+memories = vectorizer.analyze_conversation_turn(
+    user_message="Gai Media prefers Friday deliveries",
+    assistant_message="I'll note that preference",
+    entities=[{'name': 'Gai Media', 'type': 'customer'}],
+    session_id="session123",
+    user_id="user456"
+)
+
+# Consolidate similar memories
+consolidated = vectorizer.consolidate_memories(memories, "user456")
+```
+
+---
+
+### Memory Storage Service (`api/services/memory_storage.py`)
+
+**Purpose**: Store memories with PII redaction, deduplication, and TTL management
+
+**Features**:
+- **PII redaction**: Automatic detection and redaction of sensitive information
+- **Deduplication**: Content hashing to prevent duplicate memories
+- **TTL management**: Automatic expiration of time-limited memories
+- **Batch operations**: Efficient storage of multiple memories
+- **Memory retrieval**: Search and filter memories by various criteria
+
+**PII Patterns**:
+- Email addresses, phone numbers, SSNs
+- Credit card numbers, IP addresses
+- URLs, dates of birth
+
+**Usage**:
+```python
+from api.services.memory_storage import get_memory_storage
+
+storage = get_memory_storage()
+
+# Store memories with PII redaction
+memory_ids = storage.store_memories(
+    memories, session_id="session123", user_id="user456"
+)
+
+# Retrieve memories
+memories = storage.get_memories(
+    user_id="user456", 
+    limit=10, 
+    kind="semantic"
+)
+
+# Search memories by entities
+entity_memories = storage.get_memories_by_entities(
+    user_id="user456",
+    entity_names=["Gai Media"],
+    limit=5
+)
+```
+
+---
+
+### Retrieval & Synthesis Service (`api/services/retrieval_synthesis.py`)
+
+**Purpose**: Hybrid search and synthesis of memories with business context
+
+**Features**:
+- **Hybrid search**: Combines vector similarity, full-text search, and trigram matching
+- **Business context integration**: Links memories to real ERP data
+- **Semantic triple generation**: Creates structured knowledge representations
+- **Context synthesis**: Combines memories, business data, and relationships
+- **Scoring and ranking**: Multi-factor relevance scoring
+
+**Search Methods**:
+- **Vector search**: Semantic similarity using embeddings
+- **Full-text search**: PostgreSQL FTS for keyword matching
+- **Trigram search**: Fuzzy text matching for typos and variations
+- **Entity search**: Direct entity-based memory retrieval
+
+**Usage**:
+```python
+from api.services.retrieval_synthesis import get_retrieval_synthesis
+
+retrieval = get_retrieval_synthesis()
+
+# Retrieve and synthesize context
+context = retrieval.retrieve_and_synthesize(
+    query="What are Gai Media's preferences?",
+    user_id="user456",
+    entities=[{'name': 'Gai Media', 'type': 'customer'}],
+    max_memories=10
+)
+
+# Context contains:
+# - memories: Retrieved memories
+# - business_context: ERP data for entities
+# - relationships: Semantic relationships
+# - semantic_triples: Structured knowledge
+# - summary: Human-readable context summary
+```
+
+---
+
+### Prompt Builder Service (`api/services/prompt_builder.py`)
+
+**Purpose**: Structure context as semantic triples for LLM consumption
+
+**Features**:
+- **Context formatting**: Organize memories, business data, and relationships
+- **Semantic triple construction**: Create structured knowledge representations
+- **Prompt optimization**: Handle length limits and context truncation
+- **Multiple prompt types**: Memory-focused, business-focused, general prompts
+- **LLM-ready formatting**: Well-structured prompts for optimal LLM performance
+
+**Prompt Sections**:
+- **Business Context**: ERP data formatted for LLM
+- **Relevant Memories**: Retrieved memories with metadata
+- **Semantic Relationships**: Knowledge graph triples
+- **Knowledge Graph**: Structured entity relationships
+
+**Usage**:
+```python
+from api.services.prompt_builder import get_prompt_builder
+
+builder = get_prompt_builder()
+
+# Build complete prompt
+prompt = builder.build_prompt(
+    user_query="What are Gai Media's preferences?",
+    synthesized_context=context
+)
+
+# Build memory-focused prompt
+memory_prompt = builder.build_memory_prompt(
+    user_query="What do we know about this customer?",
+    memories=memories
+)
+
+# Format semantic triples
+triples_text = builder.format_semantic_triples(semantic_triples)
+```
+
+---
+
+### LLM Service (`api/services/llm_service.py`)
+
+**Purpose**: LLM integration for response generation with fallback support
+
+**Features**:
+- **Multi-provider support**: OpenAI, Anthropic, and fallback responses
+- **Context integration**: Inject structured context into prompts
+- **Response validation**: Quality checks and validation
+- **Action item extraction**: Parse action items from responses
+- **Memory summarization**: Generate summaries for consolidation
+- **Usage tracking**: Token usage and performance metrics
+
+**Supported Providers**:
+- **OpenAI**: GPT-4, GPT-3.5-turbo models
+- **Anthropic**: Claude models
+- **Fallback**: Context-aware responses when LLM unavailable
+
+**Usage**:
+```python
+from api.services.llm_service import get_llm_service
+
+llm = get_llm_service()
+
+# Generate response with context
+response = llm.generate_response(
+    prompt="What are Gai Media's preferences?",
+    context=synthesized_context
+)
+
+# Extract action items
+action_items = llm.extract_action_items(response['response'])
+
+# Generate memory summary
+summary = llm.generate_memory_summary(memories, "user456")
+
+# Validate response quality
+validation = llm.validate_response(response['response'])
+```
 
 ---
 
