@@ -90,7 +90,49 @@ print(f'✅ Found {len(customers)} customers')
 "
 ```
 
-### 5. Start API Service (Phase 6)
+### 5. Test Phase 5 Memory System
+
+```bash
+# Activate virtual environment
+source .venv/bin/activate
+
+# Test complete memory system
+python tests/test_phase5_memory_system.py
+
+# Test memory system integration
+python -c "
+from api.services.memory_vectorizer import get_memory_vectorizer
+from api.services.retrieval_synthesis import get_retrieval_synthesis
+from api.services.prompt_builder import get_prompt_builder
+
+# Test memory vectorization
+vectorizer = get_memory_vectorizer()
+memories = vectorizer.analyze_conversation_turn(
+    'Gai Media prefers Friday deliveries',
+    'I will note that preference',
+    [{'name': 'Gai Media', 'type': 'customer'}],
+    'test-session', 'test-user'
+)
+print(f'✅ Extracted {len(memories)} memories')
+
+# Test retrieval and synthesis
+retrieval = get_retrieval_synthesis()
+context = retrieval.retrieve_and_synthesize(
+    'What are Gai Media preferences?',
+    'test-user',
+    [{'name': 'Gai Media', 'type': 'customer'}],
+    10
+)
+print(f'✅ Synthesized context with {len(context[\"memories\"])} memories')
+
+# Test prompt building
+builder = get_prompt_builder()
+prompt = builder.build_prompt('What are Gai Media preferences?', context)
+print(f'✅ Built prompt ({len(prompt)} characters)')
+"
+```
+
+### 6. Start API Service (Phase 6)
 
 ```bash
 sudo docker-compose up -d api
