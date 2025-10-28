@@ -78,19 +78,36 @@ class DomainQueryService:
             }
         }
     
-    def get_sales_order_data(self, so_id: str) -> Optional[Dict[str, Any]]:
-        """Get sales order with related work orders and invoices"""
-        # Get sales order
+    def get_sales_order_data(self, identifier: str) -> Optional[Dict[str, Any]]:
+        """Get sales order with related work orders and invoices
+        
+        identifier can be either so_id (UUID) or so_number (like SO-1001)
+        """
+        # First try to find by so_number (if identifier is like "SO-1001")
         so_query = """
             SELECT so.so_id, so.so_number, so.title, so.status, so.created_at,
                    c.customer_id, c.name as customer_name, c.industry
             FROM domain.sales_orders so
             JOIN domain.customers c ON so.customer_id = c.customer_id
-            WHERE so.so_id = %s
+            WHERE so.so_number = %s
         """
-        sales_order = db.execute_query(so_query, (so_id,), fetch_one=True)
+        sales_order = db.execute_query(so_query, (identifier,), fetch_one=True)
+        
+        # If not found, try as UUID
+        if not sales_order:
+            so_query = """
+                SELECT so.so_id, so.so_number, so.title, so.status, so.created_at,
+                       c.customer_id, c.name as customer_name, c.industry
+                FROM domain.sales_orders so
+                JOIN domain.customers c ON so.customer_id = c.customer_id
+                WHERE so.so_id::text = %s
+            """
+            sales_order = db.execute_query(so_query, (identifier,), fetch_one=True)
         if not sales_order:
             return None
+        
+        # Extract the actual so_id from the sales order
+        actual_so_id = sales_order['so_id']
         
         # Get work orders
         wo_query = """
@@ -99,7 +116,7 @@ class DomainQueryService:
             WHERE so_id = %s
             ORDER BY scheduled_for ASC
         """
-        work_orders = db.execute_query(wo_query, (so_id,))
+        work_orders = db.execute_query(wo_query, (actual_so_id,))
         
         # Get invoices
         inv_query = """
@@ -108,7 +125,7 @@ class DomainQueryService:
             WHERE so_id = %s
             ORDER BY issued_at DESC
         """
-        invoices = db.execute_query(inv_query, (so_id,))
+        invoices = db.execute_query(inv_query, (actual_so_id,))
         
         # Get payments for invoices
         payments = []
@@ -118,7 +135,7 @@ class DomainQueryService:
                 SELECT p.payment_id, p.invoice_id, p.amount, p.method, p.paid_at, i.invoice_number
                 FROM domain.payments p
                 JOIN domain.invoices i ON p.invoice_id = i.invoice_id
-                WHERE p.invoice_id = ANY(%s)
+                WHERE p.invoice_id = ANY(%s::uuid[])
                 ORDER BY p.paid_at DESC
             """
             payments = db.execute_query(pay_query, (invoice_ids,))

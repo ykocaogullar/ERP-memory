@@ -8,8 +8,9 @@ Handles batch operations and memory lifecycle management.
 import logging
 import re
 import hashlib
+import json
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from api.utils.database import db
 from api.utils.config import settings
@@ -72,7 +73,7 @@ class MemoryStorage:
         # Calculate expiry dates
         for memory in redacted_memories:
             if memory.get('ttl_days'):
-                memory['expires_at'] = datetime.now() + timedelta(days=memory['ttl_days'])
+                memory['expires_at'] = datetime.now(timezone.utc) + timedelta(days=memory['ttl_days'])
             else:
                 memory['expires_at'] = None
         
@@ -202,8 +203,8 @@ class MemoryStorage:
                 memory['importance'],
                 memory.get('ttl_days'),
                 memory.get('expires_at'),
-                str(memory.get('provenance', {})),
-                datetime.now()
+                json.dumps(memory.get('provenance', {})) if memory.get('provenance') else None,
+                datetime.now(timezone.utc)
             ))
         
         # Store in database
@@ -237,7 +238,7 @@ class MemoryStorage:
                 SET content_hash = %s 
                 WHERE memory_id = %s
             """
-            db.execute_query(update_query, (content_hash, memory_id))
+            db.execute_update(update_query, (content_hash, memory_id))
     
     def get_memories(
         self, 
