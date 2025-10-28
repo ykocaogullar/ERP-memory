@@ -197,5 +197,34 @@ class StatsResponse(BaseModel):
     total_entities: int = Field(..., description="Total entities")
     total_sessions: int = Field(..., description="Total sessions")
     total_triples: int = Field(..., description="Total semantic triples")
-    active_memories: int = Field(..., description="Active memories")
-    active_entities: int = Field(..., description="Active entities")
+
+
+# ============================================================================
+# Consolidation API Models
+# ============================================================================
+
+class ConsolidateRequest(BaseModel):
+    """Request payload for memory consolidation."""
+    
+    user_id: str = Field(..., description="User ID to consolidate memories for")
+    window_size: int = Field(default=3, ge=1, le=10, description="Number of sessions to consolidate")
+
+
+class ConsolidateResponse(BaseModel):
+    """Response payload for memory consolidation."""
+    
+    summary_ids: List[int] = Field(..., description="IDs of created summaries")
+    session_window: int = Field(..., description="Number of sessions consolidated")
+    consolidated_memory_count: int = Field(..., description="Number of memories consolidated")
+    session_count: int = Field(..., description="Number of sessions processed")
+    summary_count: int = Field(..., description="Number of summaries created")
+    created_at: str = Field(..., description="Consolidation timestamp")
+
+
+class ConsolidationStatsResponse(BaseModel):
+    """Response for consolidation statistics."""
+    
+    unconsolidated_sessions: int = Field(..., description="Number of unconsolidated sessions")
+    consolidated_sessions: int = Field(..., description="Number of consolidated sessions")
+    total_summaries: int = Field(..., description="Total number of summaries")
+    ready_for_consolidation: bool = Field(..., description="Whether user has enough sessions for consolidation")

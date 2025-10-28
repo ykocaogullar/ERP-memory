@@ -64,7 +64,12 @@ async def chat(request: ChatRequest):
         entity_ids = entity_extractor.store_entities(entities)
         logger.info(f"Stored {len(entity_ids)} entities")
         
-        # Step 2: Build semantic relationships from conversation
+        # Step 2: Create or update session
+        logger.info("Creating/updating session")
+        session_id = _create_or_update_session(session_id, user_id)
+        logger.info(f"Session ID: {session_id}")
+        
+        # Step 3: Build semantic relationships from conversation
         logger.info("Building semantic relationships")
         conv_relationships = relationship_builder.extract_conversational_relationships(
             user_message, entities
@@ -149,4 +154,41 @@ async def chat(request: ChatRequest):
     except Exception as e:
         logger.error(f"Chat endpoint error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _create_or_update_session(session_id: uuid.UUID, user_id: str) -> uuid.UUID:
+    """
+    Create or update a session record
+    
+    Args:
+        session_id: Session UUID
+        user_id: User ID
+        
+    Returns:
+        Session UUID
+    """
+    # Check if session exists
+    check_query = """
+        SELECT session_id FROM app.sessions 
+        WHERE session_id = %s
+    """
+    existing = db.execute_query(check_query, (str(session_id),), fetch_one=True)
+    
+    if existing:
+        # Update last activity
+        update_query = """
+            UPDATE app.sessions 
+            SET last_activity_at = NOW(), turn_count = turn_count + 1
+            WHERE session_id = %s
+        """
+        db.execute_update(update_query, (str(session_id),))
+    else:
+        # Create new session
+        insert_query = """
+            INSERT INTO app.sessions (session_id, user_id, started_at, last_activity_at, turn_count)
+            VALUES (%s, %s, NOW(), NOW(), 1)
+        """
+        db.execute_update(insert_query, (str(session_id), user_id))
+    
+    return session_id
 

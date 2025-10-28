@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     TRIGRAM_THRESHOLD: float = Field(default=0.3, description="Trigram similarity threshold")
     MEMORY_TTL_DAYS: int = Field(default=30, description="Default memory TTL in days")
     CONSOLIDATION_WINDOW: int = Field(default=3, description="Session window for consolidation")
+    CONSOLIDATION_SIMILARITY_THRESHOLD: float = Field(default=0.5, description="Memory clustering similarity threshold")
     VECTOR_DIMENSIONS: int = Field(default=1536, description="Vector embedding dimensions")
     
     # Semantic Layer Configuration
