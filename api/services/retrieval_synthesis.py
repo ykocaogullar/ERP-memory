@@ -16,6 +16,7 @@ from api.services.embeddings import get_embedding_service
 from api.services.memory_storage import get_memory_storage
 from api.services.domain_queries import get_domain_query_service
 from api.services.semantic_relationships import get_semantic_relationship_builder
+from api.services.entity_extractor import get_entity_extractor
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class RetrievalSynthesis:
         self.memory_storage = get_memory_storage()
         self.domain_queries = get_domain_query_service()
         self.semantic_relationships = get_semantic_relationship_builder()
+        self.entity_extractor = get_entity_extractor()
         
         # Search weights for hybrid scoring
         self.search_weights = {
@@ -313,17 +315,29 @@ class RetrievalSynthesis:
         return business_context
     
     def _get_entity_relationships(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Get semantic relationships for entities"""
-        relationships = []
+        """
+        Get semantic relationships for entities
         
+        This looks up relationships stored in app.entity_relationships table
+        for the entities found in the conversation.
+        """
+        relationships = []
+        entity_ids = []
+        
+        # First, find entity IDs for each entity name
         for entity in entities:
             entity_name = entity.get('name')
-            if entity_name:
-                # Get relationships for this entity
-                # For now, return empty list since we don't have entity IDs
-                # In a real implementation, we'd need to map entity names to IDs
-                entity_relationships = []
-                relationships.extend(entity_relationships)
+            user_id = entity.get('user_id')
+            
+            if entity_name and user_id:
+                # Find the entity in the database by name
+                entity_record = self.entity_extractor.find_entity_by_name(entity_name, user_id)
+                if entity_record and entity_record.get('entity_id'):
+                    entity_ids.append(entity_record['entity_id'])
+        
+        # Get relationships for found entity IDs
+        if entity_ids:
+            relationships = self.semantic_relationships.get_relationships_for_entities(entity_ids)
         
         return relationships
     

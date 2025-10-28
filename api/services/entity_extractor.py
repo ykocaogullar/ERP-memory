@@ -8,6 +8,7 @@ Links entities to domain database records and creates new entity records as need
 import re
 import hashlib
 import logging
+import json
 from typing import List, Dict, Any, Optional, Tuple
 from uuid import UUID
 
@@ -212,7 +213,8 @@ class EntityExtractor:
             (
                 e['session_id'], e['user_id'], e['name'], e['name_hash'],
                 e['canonical_name'], e['type'], e['source'],
-                str(e.get('external_ref', {})), e['confidence'],
+                json.dumps(e.get('external_ref', {})) if e.get('external_ref') else None, 
+                e['confidence'],
                 e.get('entity_embedding'), 'now()'
             )
             for e in entities
