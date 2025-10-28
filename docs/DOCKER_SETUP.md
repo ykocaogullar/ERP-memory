@@ -4,20 +4,41 @@ This document explains how to run the ERP Memory System using Docker containers.
 
 ## Quick Start
 
-1. **Start the system:**
+1. **Set your OpenAI API key:**
    ```bash
-   ./start_docker.sh
+   export OPENAI_API_KEY="your-api-key-here"
    ```
 
-2. **Access the API:**
+2. **Start the system:**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Check status:**
+   ```bash
+   docker-compose ps
+   ```
+
+4. **Access the API:**
    - API: http://localhost:8080
    - Health Check: http://localhost:8080/health
    - API Documentation: http://localhost:8080/docs
 
-3. **Stop the system:**
+5. **Stop the system:**
    ```bash
    docker-compose down
    ```
+
+## What Happens When You Run `docker-compose up -d`
+
+Docker Compose automatically handles the entire startup sequence:
+
+1. **Database** (`erp_db`) starts first
+2. **Migrations** (`erp_migrations`) runs after database is healthy
+3. **Seed** (`erp_seed`) runs after migrations complete successfully
+4. **API** (`erp_api`) starts after seed completes and includes health checks
+
+The `depends_on` with `condition: service_completed_successfully` ensures proper startup order.
 
 ## Architecture
 
@@ -90,6 +111,9 @@ docker-compose logs -f
 
 # Restart API only
 docker-compose restart api
+
+# Check service status
+docker-compose ps
 ```
 
 ### Development Commands
@@ -203,7 +227,6 @@ For production deployment:
 ├── Dockerfile              # API container definition
 ├── docker-compose.yml      # Multi-service orchestration
 ├── .dockerignore          # Docker build exclusions
-├── start_docker.sh        # Startup script
 ├── tests/
 │   └── test_docker_integration.py  # Docker tests
 └── api/                   # Application code
