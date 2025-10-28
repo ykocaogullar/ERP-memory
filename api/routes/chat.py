@@ -8,7 +8,7 @@ from api.services.entity_extractor import get_entity_extractor
 from api.services.semantic_relationships import get_semantic_relationship_builder
 from api.services.memory_vectorizer import get_memory_vectorizer
 from api.services.memory_storage import get_memory_storage
-from api.services.retrieval_synthesis import RetrievalSynthesis
+from api.services.retrieval_synthesis import get_retrieval_synthesis
 from api.services.prompt_builder import get_prompt_builder
 from api.services.llm_service import get_llm_service
 from api.utils.database import db
@@ -24,7 +24,7 @@ entity_extractor = get_entity_extractor()
 relationship_builder = get_semantic_relationship_builder()
 memory_vectorizer = get_memory_vectorizer()
 memory_storage = get_memory_storage()
-retrieval_synthesis = RetrievalSynthesis()
+retrieval_synthesis = get_retrieval_synthesis()
 prompt_builder = get_prompt_builder()
 llm_service = get_llm_service()
 
@@ -51,17 +51,21 @@ async def chat(request: ChatRequest):
     
     try:
         # Step 1: Extract entities from user message
+        logger.info(f"Extracting entities from: {user_message}")
         entities = entity_extractor.extract_entities(
             user_message, 
             user_id, 
             str(session_id)
         )
-        logger.info(f"Extracted {len(entities)} entities")
+        logger.info(f"Extracted {len(entities)} entities: {[e.get('name') for e in entities]}")
         
         # Store entities in database
+        logger.info("Storing entities in database")
         entity_ids = entity_extractor.store_entities(entities)
+        logger.info(f"Stored {len(entity_ids)} entities")
         
         # Step 2: Build semantic relationships from conversation
+        logger.info("Building semantic relationships")
         conv_relationships = relationship_builder.extract_conversational_relationships(
             user_message, entities
         )
@@ -70,6 +74,7 @@ async def chat(request: ChatRequest):
             logger.info(f"Created {len(conv_relationships)} conversational relationships")
         
         # Step 3: Retrieve and synthesize context
+        logger.info("Retrieving and synthesizing context")
         synthesized_context = retrieval_synthesis.retrieve_and_synthesize(
             user_message,
             user_id,
@@ -77,18 +82,23 @@ async def chat(request: ChatRequest):
             max_memories=request.max_memories if request.retrieve_memories else 0,
             include_business_context=True
         )
+        logger.info(f"Synthesized context: {len(synthesized_context.get('memories', []))} memories")
         
         # Step 4: Build prompt with structured context
+        logger.info("Building prompt")
         prompt = prompt_builder.build_prompt(
             user_query=user_message,
             synthesized_context=synthesized_context
         )
+        logger.info(f"Built prompt: {len(prompt)} chars")
         
         # Step 5: Generate LLM response
+        logger.info("Generating LLM response")
         llm_response = llm_service.generate_response(
             prompt=prompt,
             context=synthesized_context
         )
+        logger.info("Generated LLM response")
         
         # Extract the assistant message from LLM response
         assistant_message = llm_response.get('response', '')

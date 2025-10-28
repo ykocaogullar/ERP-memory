@@ -8,7 +8,7 @@ Synthesizes memories with business context for LLM consumption.
 import logging
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 from api.utils.database import db
 from api.utils.config import settings
@@ -145,12 +145,12 @@ class RetrievalSynthesis:
                 created_at, 
                 expires_at,
                 provenance,
-                1 - (embedding <=> %s) as similarity
+                1 - (embedding <=> %s::vector) as similarity
             FROM app.memories
             WHERE user_id = %s
             AND (expires_at IS NULL OR expires_at > NOW())
             AND embedding IS NOT NULL
-            ORDER BY embedding <=> %s
+            ORDER BY embedding <=> %s::vector
             LIMIT %s
         """
         
@@ -269,7 +269,7 @@ class RetrievalSynthesis:
             return results
         
         # Calculate recency boost
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         for result in results:
             created_at = result['created_at']
             if isinstance(created_at, str):
@@ -295,10 +295,13 @@ class RetrievalSynthesis:
             entity_name = entity.get('name')
             
             if entity_type == 'customer' and entity_name:
-                # Get customer data
-                customer_data = self.domain_queries.get_customer_data(entity_name)
-                if customer_data:
-                    business_context[entity_name] = customer_data
+                # Get customer data using external_ref ID
+                external_ref = entity.get('external_ref', {})
+                customer_id = external_ref.get('id')
+                if customer_id:
+                    customer_data = self.domain_queries.get_customer_data(customer_id)
+                    if customer_data:
+                        business_context[entity_name] = customer_data
             
             elif entity_type == 'sales_order' and entity_name:
                 # Get order data
@@ -454,7 +457,7 @@ class RetrievalSynthesis:
                 'memory_types': list(memories_by_type.keys()),
                 'business_entities': list(business_context.keys()),
                 'total_triples': len(all_triples),
-                'generated_at': datetime.now().isoformat()
+                'generated_at': datetime.now(timezone.utc).isoformat()
             }
         }
     

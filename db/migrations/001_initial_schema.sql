@@ -145,6 +145,7 @@ CREATE TABLE app.memories (
     user_id TEXT NOT NULL,
     kind TEXT NOT NULL CHECK (kind IN ('episodic','semantic','profile','policy','commitment','todo')),
     text TEXT NOT NULL,
+    content_hash TEXT,
     embedding vector(1536),
     importance REAL NOT NULL DEFAULT 0.5,
     ttl_days INT,
@@ -159,6 +160,8 @@ CREATE INDEX idx_memories_user ON app.memories(user_id);
 CREATE INDEX idx_memories_kind ON app.memories(kind);
 CREATE INDEX idx_memories_expires ON app.memories(expires_at)
     WHERE expires_at IS NOT NULL;
+CREATE INDEX idx_memories_content_hash ON app.memories(content_hash)
+    WHERE content_hash IS NOT NULL;
 CREATE INDEX idx_memories_embedding ON app.memories
     USING ivfflat (embedding vector_cosine_ops)
     WHERE embedding IS NOT NULL;

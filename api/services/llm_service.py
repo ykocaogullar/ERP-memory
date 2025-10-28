@@ -8,7 +8,7 @@ Supports multiple LLM providers and response formatting.
 import logging
 import json
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from api.utils.config import settings
 
@@ -113,7 +113,7 @@ class LLMService:
                     'total_tokens': usage.total_tokens
                 },
                 'metadata': {
-                    'generated_at': datetime.now().isoformat(),
+                    'generated_at': datetime.now(timezone.utc).isoformat(),
                     'context_used': context is not None
                 }
             }
@@ -147,7 +147,7 @@ class LLMService:
                     'total_tokens': usage.input_tokens + usage.output_tokens
                 },
                 'metadata': {
-                    'generated_at': datetime.now().isoformat(),
+                    'generated_at': datetime.now(timezone.utc).isoformat(),
                     'context_used': context is not None
                 }
             }
@@ -215,7 +215,7 @@ class LLMService:
                 'total_tokens': len(prompt) + len('\n'.join(response_parts))
             },
             'metadata': {
-                'generated_at': datetime.now().isoformat(),
+                'generated_at': datetime.now(timezone.utc).isoformat(),
                 'context_used': context is not None,
                 'fallback': True
             }
@@ -293,7 +293,7 @@ class LLMService:
                 action_text = match.group(1).strip()
                 action_items.append({
                     'text': action_text,
-                    'extracted_at': datetime.now().isoformat(),
+                    'extracted_at': datetime.now(timezone.utc).isoformat(),
                     'confidence': 0.8
                 })
         
