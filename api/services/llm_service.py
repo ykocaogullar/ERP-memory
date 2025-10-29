@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 
 from api.utils.config import settings
+from api.utils.demo_logger import log_llm_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,22 @@ class LLMService:
         max_tokens = max_tokens if max_tokens is not None else self.default_max_tokens
         temperature = temperature if temperature is not None else self.default_temperature
         
+        # Log prompt for demo purposes (non-blocking)
+        try:
+            session_id = (context or {}).get('session_id') if isinstance(context, dict) else None
+            user_id = (context or {}).get('user_id') if isinstance(context, dict) else None
+            log_llm_prompt(
+                prompt=prompt,
+                model=self.model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                session_id=str(session_id) if session_id else None,
+                user_id=user_id,
+                context=context or {}
+            )
+        except Exception:
+            pass
+
         try:
             return self._generate_openai_response(prompt, context, max_tokens, temperature)
         

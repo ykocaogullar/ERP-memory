@@ -77,6 +77,7 @@ services:
       LOG_FORMAT: ${LOG_FORMAT:-simple}
     volumes:
       - ./api:/app/api
+      - ./demo:/app/demo
     command: uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
     networks:
       - erp_network

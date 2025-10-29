@@ -12,6 +12,7 @@ from api.services.retrieval_synthesis import get_retrieval_synthesis
 from api.services.prompt_builder import get_prompt_builder
 from api.services.llm_service import get_llm_service
 from api.utils.database import db
+from api.utils.demo_logger import log_retrieval_synthesis
 import uuid
 import logging
 import time
@@ -89,6 +90,14 @@ async def chat(request: ChatRequest):
         )
         logger.info(f"Synthesized context: {len(synthesized_context.get('memories', []))} memories")
         
+        # Log to demo log file
+        log_retrieval_synthesis(
+            user_message=user_message,
+            synthesized_context=synthesized_context,
+            session_id=session_id,
+            user_id=user_id
+        )
+        
         # Step 4: Build prompt with structured context
         logger.info("Building prompt")
         prompt = prompt_builder.build_prompt(
@@ -100,9 +109,13 @@ async def chat(request: ChatRequest):
         # Step 5: Generate LLM response
         logger.info("Generating LLM response")
         # Pass max_tokens and temperature from request, or use None to fall back to service defaults
+        # Include user and session identifiers in context for logging
+        context_for_llm = dict(synthesized_context)
+        context_for_llm['user_id'] = user_id
+        context_for_llm['session_id'] = str(session_id)
         llm_response = llm_service.generate_response(
             prompt=prompt,
-            context=synthesized_context,
+            context=context_for_llm,
             max_tokens=request.max_tokens,
             temperature=request.temperature
         )
