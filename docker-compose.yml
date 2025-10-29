@@ -74,6 +74,7 @@ services:
       ENABLE_SEMANTIC_RELATIONSHIPS: ${ENABLE_SEMANTIC_RELATIONSHIPS:-true}
       ENTITY_EMBEDDING_ENABLED: ${ENTITY_EMBEDDING_ENABLED:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-simple}
     volumes:
       - ./api:/app/api
     command: uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload

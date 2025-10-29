@@ -6,15 +6,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import chat, memory, entities, system, consolidate
 from api.utils.config import settings
-import logging
+from api.utils.logging_config import setup_logging, get_logger
+from api.middleware import RequestLoggingMiddleware
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Setup enhanced logging
+setup_logging(log_format=settings.LOG_FORMAT, log_level=settings.LOG_LEVEL)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -23,7 +21,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
+# Add middleware
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -24,21 +24,17 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = Field(default="erp_password", description="Database password")
     
     # LLM Configuration
-    LLM_PROVIDER: str = Field(
-        default="openai",
-        description="LLM provider (openai, anthropic, fallback)"
-    )
     LLM_MODEL: str = Field(
         default="gpt-4o-mini",
-        description="LLM model name"
+        description="OpenAI LLM model name"
     )
     LLM_MAX_TOKENS: int = Field(
         default=2000,
-        description="Maximum tokens for LLM response"
+        description="Maximum tokens for LLM response (default, can be overridden per request)"
     )
     LLM_TEMPERATURE: float = Field(
         default=0.7,
-        description="LLM temperature for response generation"
+        description="LLM temperature for response generation (default, can be overridden per request)"
     )
     
     # OpenAI Configuration
@@ -52,16 +48,11 @@ class Settings(BaseSettings):
         description="Embedding vector dimension"
     )
     
-    # Anthropic Configuration
-    ANTHROPIC_API_KEY: Optional[str] = Field(
-        default=None,
-        description="Anthropic API key (optional)"
-    )
-    
     # Application Settings
     API_HOST: str = Field(default="0.0.0.0", description="API host to bind to")
     API_PORT: int = Field(default=8080, description="API port to listen on")
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
+    LOG_FORMAT: str = Field(default="simple", description="Log format: 'simple' or 'json'")
     
     # Memory System Configuration
     ENABLE_VECTORS: bool = Field(default=True, description="Enable vector embeddings")

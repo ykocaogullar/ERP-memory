@@ -99,9 +99,12 @@ async def chat(request: ChatRequest):
         
         # Step 5: Generate LLM response
         logger.info("Generating LLM response")
+        # Pass max_tokens and temperature from request, or use None to fall back to service defaults
         llm_response = llm_service.generate_response(
             prompt=prompt,
-            context=synthesized_context
+            context=synthesized_context,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature
         )
         logger.info("Generated LLM response")
         
