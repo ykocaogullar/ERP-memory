@@ -1,25 +1,23 @@
 services:
-  # PostgreSQL with pgvector extension
   db:
     image: pgvector/pgvector:pg15
     container_name: erp_db
     environment:
-      POSTGRES_DB: ${DB_NAME:-erp_db}
-      POSTGRES_USER: ${DB_USER:-erp_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-erp_password}
+      POSTGRES_DB: erp_db
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-erp_user} -d ${DB_NAME:-erp_db}"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_db"]
+      interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - erp_network
 
-  # Migration service
   migrations:
     image: postgres:15
     container_name: erp_migrations
@@ -27,75 +25,69 @@ services:
       db:
         condition: service_healthy
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-erp_db}
-      DB_USER: ${DB_USER:-erp_user}
-      DB_PASSWORD: ${DB_PASSWORD:-erp_password}
+      PGPASSWORD: erp_password
     volumes:
       - ./db/migrations:/migrations
-    command: bash /migrations/run_migrations.sh
+    command: >
+      sh -c "
+      sleep 5 &&
+      psql -h db -U erp_user -d erp_db -f /migrations/001_initial_schema.sql
+      "
     networks:
       - erp_network
 
-  # Seed service
   seed:
     image: postgres:15
     container_name: erp_seed
     depends_on:
-      migrations:
-        condition: service_completed_successfully
+      - migrations
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-erp_db}
-      DB_USER: ${DB_USER:-erp_user}
-      DB_PASSWORD: ${DB_PASSWORD:-erp_password}
+      PGPASSWORD: erp_password
     volumes:
       - ./db/seeds:/seeds
-    command: bash /seeds/run_seeds.sh
+    command: >
+      sh -c "
+      sleep 10 &&
+      psql -h db -U erp_user -d erp_db -f /seeds/seed_data.sql
+      "
     networks:
       - erp_network
 
-  # API service
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: erp_api
     depends_on:
       seed:
         condition: service_completed_successfully
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://${DB_USER:-erp_user}:${DB_PASSWORD:-erp_password}@db:5432/${DB_NAME:-erp_db}
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-erp_db}
-      DB_USER: ${DB_USER:-erp_user}
-      DB_PASSWORD: ${DB_PASSWORD:-erp_password}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      API_HOST: ${API_HOST:-0.0.0.0}
-      API_PORT: ${API_PORT:-8080}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      ENABLE_VECTORS: ${ENABLE_VECTORS:-true}
-      ENABLE_PII_REDACTION: ${ENABLE_PII_REDACTION:-true}
-      FTS_LANGUAGE: ${FTS_LANGUAGE:-english}
-      TRIGRAM_THRESHOLD: ${TRIGRAM_THRESHOLD:-0.3}
-      MEMORY_TTL_DAYS: ${MEMORY_TTL_DAYS:-30}
-      CONSOLIDATION_WINDOW: ${CONSOLIDATION_WINDOW:-3}
-      VECTOR_DIMENSIONS: ${VECTOR_DIMENSIONS:-1536}
-      ENABLE_SEMANTIC_RELATIONSHIPS: ${ENABLE_SEMANTIC_RELATIONSHIPS:-true}
-      ENTITY_EMBEDDING_ENABLED: ${ENTITY_EMBEDDING_ENABLED:-true}
-      SEMANTIC_SCORE_WEIGHT: ${SEMANTIC_SCORE_WEIGHT:-0.2}
     ports:
       - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://erp_user:erp_password@db:5432/erp_db
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: erp_db
+      DB_USER: erp_user
+      DB_PASSWORD: erp_password
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ENABLE_VECTORS: ${ENABLE_VECTORS:-true}
+      ENABLE_PII_REDACTION: ${ENABLE_PII_REDACTION:-true}
+      ENABLE_SEMANTIC_RELATIONSHIPS: ${ENABLE_SEMANTIC_RELATIONSHIPS:-true}
+      ENTITY_EMBEDDING_ENABLED: ${ENTITY_EMBEDDING_ENABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-simple}
     volumes:
       - ./api:/app/api
+      - ./demo:/app/demo
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
     networks:
       - erp_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   postgres_data:

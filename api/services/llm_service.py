@@ -1,8 +1,7 @@
 """
 LLM Service
 
-Handles LLM integration for response generation.
-Supports multiple LLM providers and response formatting.
+Handles LLM integration for response generation using OpenAI.
 """
 
 import logging
@@ -11,26 +10,21 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 
 from api.utils.config import settings
+from api.utils.demo_logger import log_llm_prompt
 
 logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    """Handles LLM integration for response generation"""
+    """Handles LLM integration for response generation using OpenAI"""
     
     def __init__(self):
-        self.provider = settings.LLM_PROVIDER
         self.model = settings.LLM_MODEL
-        self.max_tokens = settings.LLM_MAX_TOKENS
-        self.temperature = settings.LLM_TEMPERATURE
+        self.default_max_tokens = settings.LLM_MAX_TOKENS
+        self.default_temperature = settings.LLM_TEMPERATURE
         
-        # Initialize provider-specific client
-        if self.provider == 'openai':
-            self._init_openai()
-        elif self.provider == 'anthropic':
-            self._init_anthropic()
-        else:
-            logger.warning(f"Unknown LLM provider: {self.provider}")
+        # Initialize OpenAI client
+        self._init_openai()
     
     def _init_openai(self):
         """Initialize OpenAI client"""
@@ -45,30 +39,21 @@ class LLMService:
             logger.error(f"Failed to initialize OpenAI client: {e}")
             self.client = None
     
-    def _init_anthropic(self):
-        """Initialize Anthropic client"""
-        try:
-            import anthropic
-            self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-            logger.info("Anthropic client initialized")
-        except ImportError:
-            logger.error("Anthropic package not installed")
-            self.client = None
-        except Exception as e:
-            logger.error(f"Failed to initialize Anthropic client: {e}")
-            self.client = None
-    
     def generate_response(
         self, 
         prompt: str, 
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None
     ) -> Dict[str, Any]:
         """
-        Generate response using LLM
+        Generate response using OpenAI LLM
         
         Args:
             prompt: Complete prompt with context
             context: Optional additional context
+            max_tokens: Optional max tokens override (uses default if not provided)
+            temperature: Optional temperature override (uses default if not provided)
             
         Returns:
             Dictionary containing response and metadata
@@ -76,19 +61,40 @@ class LLMService:
         if not self.client:
             return self._fallback_response(prompt, context)
         
+        # Use provided parameters or fall back to defaults
+        max_tokens = max_tokens if max_tokens is not None else self.default_max_tokens
+        temperature = temperature if temperature is not None else self.default_temperature
+        
+        # Log prompt for demo purposes (non-blocking)
         try:
-            if self.provider == 'openai':
-                return self._generate_openai_response(prompt, context)
-            elif self.provider == 'anthropic':
-                return self._generate_anthropic_response(prompt, context)
-            else:
-                return self._fallback_response(prompt, context)
+            session_id = (context or {}).get('session_id') if isinstance(context, dict) else None
+            user_id = (context or {}).get('user_id') if isinstance(context, dict) else None
+            log_llm_prompt(
+                prompt=prompt,
+                model=self.model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                session_id=str(session_id) if session_id else None,
+                user_id=user_id,
+                context=context or {}
+            )
+        except Exception:
+            pass
+
+        try:
+            return self._generate_openai_response(prompt, context, max_tokens, temperature)
         
         except Exception as e:
             logger.error(f"LLM generation failed: {e}")
             return self._fallback_response(prompt, context)
     
-    def _generate_openai_response(self, prompt: str, context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _generate_openai_response(
+        self, 
+        prompt: str, 
+        context: Optional[Dict[str, Any]], 
+        max_tokens: int,
+        temperature: float
+    ) -> Dict[str, Any]:
         """Generate response using OpenAI"""
         try:
             response = self.client.chat.completions.create(
@@ -96,8 +102,8 @@ class LLMService:
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature
+                max_tokens=max_tokens,
+                temperature=temperature
             )
             
             content = response.choices[0].message.content
@@ -120,40 +126,6 @@ class LLMService:
         
         except Exception as e:
             logger.error(f"OpenAI generation failed: {e}")
-            return self._fallback_response(prompt, context)
-    
-    def _generate_anthropic_response(self, prompt: str, context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate response using Anthropic"""
-        try:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            
-            content = response.content[0].text
-            usage = response.usage
-            
-            return {
-                'response': content,
-                'provider': 'anthropic',
-                'model': self.model,
-                'usage': {
-                    'input_tokens': usage.input_tokens,
-                    'output_tokens': usage.output_tokens,
-                    'total_tokens': usage.input_tokens + usage.output_tokens
-                },
-                'metadata': {
-                    'generated_at': datetime.now(timezone.utc).isoformat(),
-                    'context_used': context is not None
-                }
-            }
-        
-        except Exception as e:
-            logger.error(f"Anthropic generation failed: {e}")
             return self._fallback_response(prompt, context)
     
     def _fallback_response(self, prompt: str, context: Optional[Dict[str, Any]]) -> Dict[str, Any]:

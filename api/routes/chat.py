@@ -12,6 +12,7 @@ from api.services.retrieval_synthesis import get_retrieval_synthesis
 from api.services.prompt_builder import get_prompt_builder
 from api.services.llm_service import get_llm_service
 from api.utils.database import db
+from api.utils.demo_logger import log_retrieval_synthesis
 import uuid
 import logging
 import time
@@ -64,7 +65,12 @@ async def chat(request: ChatRequest):
         entity_ids = entity_extractor.store_entities(entities)
         logger.info(f"Stored {len(entity_ids)} entities")
         
-        # Step 2: Build semantic relationships from conversation
+        # Step 2: Create or update session
+        logger.info("Creating/updating session")
+        session_id = _create_or_update_session(session_id, user_id)
+        logger.info(f"Session ID: {session_id}")
+        
+        # Step 3: Build semantic relationships from conversation
         logger.info("Building semantic relationships")
         conv_relationships = relationship_builder.extract_conversational_relationships(
             user_message, entities
@@ -84,6 +90,14 @@ async def chat(request: ChatRequest):
         )
         logger.info(f"Synthesized context: {len(synthesized_context.get('memories', []))} memories")
         
+        # Log to demo log file
+        log_retrieval_synthesis(
+            user_message=user_message,
+            synthesized_context=synthesized_context,
+            session_id=session_id,
+            user_id=user_id
+        )
+        
         # Step 4: Build prompt with structured context
         logger.info("Building prompt")
         prompt = prompt_builder.build_prompt(
@@ -94,9 +108,16 @@ async def chat(request: ChatRequest):
         
         # Step 5: Generate LLM response
         logger.info("Generating LLM response")
+        # Pass max_tokens and temperature from request, or use None to fall back to service defaults
+        # Include user and session identifiers in context for logging
+        context_for_llm = dict(synthesized_context)
+        context_for_llm['user_id'] = user_id
+        context_for_llm['session_id'] = str(session_id)
         llm_response = llm_service.generate_response(
             prompt=prompt,
-            context=synthesized_context
+            context=context_for_llm,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature
         )
         logger.info("Generated LLM response")
         
@@ -149,4 +170,41 @@ async def chat(request: ChatRequest):
     except Exception as e:
         logger.error(f"Chat endpoint error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _create_or_update_session(session_id: uuid.UUID, user_id: str) -> uuid.UUID:
+    """
+    Create or update a session record
+    
+    Args:
+        session_id: Session UUID
+        user_id: User ID
+        
+    Returns:
+        Session UUID
+    """
+    # Check if session exists
+    check_query = """
+        SELECT session_id FROM app.sessions 
+        WHERE session_id = %s
+    """
+    existing = db.execute_query(check_query, (str(session_id),), fetch_one=True)
+    
+    if existing:
+        # Update last activity
+        update_query = """
+            UPDATE app.sessions 
+            SET last_activity_at = NOW(), turn_count = turn_count + 1
+            WHERE session_id = %s
+        """
+        db.execute_update(update_query, (str(session_id),))
+    else:
+        # Create new session
+        insert_query = """
+            INSERT INTO app.sessions (session_id, user_id, started_at, last_activity_at, turn_count)
+            VALUES (%s, %s, NOW(), NOW(), 1)
+        """
+        db.execute_update(insert_query, (str(session_id), user_id))
+    
+    return session_id
 
