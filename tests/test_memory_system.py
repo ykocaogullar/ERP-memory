@@ -102,9 +102,9 @@ class TestMemoryVectorizer:
         """Test todo memory extraction"""
         vectorizer = get_memory_vectorizer()
         
-        user_message = "Need to check invoice status for TC Boiler"
+        user_message = "Need to check invoice status for Riverbend Fabrication"
         assistant_message = "I'll add that to the todo list"
-        entities = [{'name': 'TC Boiler', 'type': 'customer', 'confidence': 0.9}]
+        entities = [{'name': 'Riverbend Fabrication', 'type': 'customer', 'confidence': 0.9}]
         
         memories = vectorizer.analyze_conversation_turn(
             user_message, assistant_message, entities, 'test-session', 'test-user'
@@ -114,7 +114,7 @@ class TestMemoryVectorizer:
         assert len(todo_memories) > 0
         
         todo = todo_memories[0]
-        assert 'TC Boiler' in todo['text']
+        assert 'Riverbend Fabrication' in todo['text']
         assert todo['ttl_days'] == 14
     
     def test_consolidate_memories(self):

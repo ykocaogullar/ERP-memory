@@ -167,7 +167,7 @@ The `app` schema contains the memory system:
 
 The system comes with sample data:
 
-- **3 Customers**: Gai Media (Entertainment), PC Boiler (Industrial), TC Boiler (Industrial)
+- **3 Customers**: Gai Media (Entertainment), PC Boiler (Industrial), Riverbend Fabrication (Manufacturing)
 - **2 Sales Orders**: SO-1001 (Album Fulfillment), SO-2002 (Valve Repair)
 - **2 Work Orders**: One queued, one blocked
 - **2 Invoices**: INV-1009 ($1,200, open), INV-2201 ($850, open)

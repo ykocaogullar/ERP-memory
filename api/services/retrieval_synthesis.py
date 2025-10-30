@@ -290,31 +290,74 @@ class RetrievalSynthesis:
         """Get business context for entities"""
         business_context = {}
         
+        logger.info(f"Getting business context for {len(entities)} entities")
+        
         for entity in entities:
             entity_type = entity.get('type')
             entity_name = entity.get('name')
             
+            logger.debug(f"Processing entity: name={entity_name}, type={entity_type}, external_ref={entity.get('external_ref')}")
+            
             if entity_type == 'customer' and entity_name:
                 # Get customer data using external_ref ID
                 external_ref = entity.get('external_ref', {})
-                customer_id = external_ref.get('id')
+                if isinstance(external_ref, str):
+                    # If external_ref is a JSON string, parse it
+                    import json
+                    try:
+                        external_ref = json.loads(external_ref)
+                    except:
+                        external_ref = {}
+                
+                customer_id = external_ref.get('id') if isinstance(external_ref, dict) else None
                 if customer_id:
+                    logger.info(f"Fetching customer data for ID: {customer_id}")
                     customer_data = self.domain_queries.get_customer_data(customer_id)
                     if customer_data:
                         business_context[entity_name] = customer_data
+                        logger.info(f"Found customer data for {entity_name}")
+                    else:
+                        logger.warning(f"No customer data found for ID: {customer_id}")
+                else:
+                    # Try to find customer by name as fallback
+                    logger.info(f"No external_ref ID for {entity_name}, trying name lookup")
+                    try:
+                        # Query domain.customers by name
+                        from api.utils.database import db
+                        customer_query = """
+                            SELECT customer_id FROM domain.customers 
+                            WHERE name ILIKE %s LIMIT 1
+                        """
+                        result = db.execute_query(customer_query, (entity_name,), fetch_one=True)
+                        if result and result.get('customer_id'):
+                            customer_data = self.domain_queries.get_customer_data(result['customer_id'])
+                            if customer_data:
+                                business_context[entity_name] = customer_data
+                                logger.info(f"Found customer data for {entity_name} via name lookup")
+                    except Exception as e:
+                        logger.error(f"Error looking up customer by name: {e}")
             
             elif entity_type == 'sales_order' and entity_name:
-                # Get order data
+                # Get order data - entity_name should be like "SO-1001"
+                logger.info(f"Fetching sales order data for: {entity_name}")
                 order_data = self.domain_queries.get_sales_order_data(entity_name)
                 if order_data:
                     business_context[entity_name] = order_data
+                    logger.info(f"Found order data for {entity_name}")
+                else:
+                    logger.warning(f"No order data found for: {entity_name}")
             
             elif entity_type == 'invoice' and entity_name:
                 # Get invoice data
+                logger.info(f"Fetching invoice data for: {entity_name}")
                 invoice_data = self.domain_queries.get_invoice_data(entity_name)
                 if invoice_data:
                     business_context[entity_name] = invoice_data
+                    logger.info(f"Found invoice data for {entity_name}")
+                else:
+                    logger.warning(f"No invoice data found for: {entity_name}")
         
+        logger.info(f"Business context contains {len(business_context)} entities")
         return business_context
     
     def _get_entity_relationships(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
