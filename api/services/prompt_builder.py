@@ -78,8 +78,8 @@ class PromptBuilder:
         # Combine all sections
         context_text = "\n\n".join(context_sections)
         
-        # Build final prompt
-        prompt = f"{system_prompt}\n\n{context_text}\n\nUser Query: {user_query}"
+        # Build final prompt with user query at the beginning
+        prompt = f"{system_prompt}\n\nUser Query: {user_query}\n\n{context_text}"
         
         # Truncate if too long
         if len(prompt) > self.max_context_length:
@@ -243,9 +243,11 @@ When responding:
     
     def _truncate_prompt(self, prompt: str, user_query: str) -> str:
         """Truncate prompt if it's too long"""
-        # Keep system prompt and user query
+        # Keep system prompt and user query (which now appear first)
         system_prompt = self._get_default_system_prompt()
-        min_length = len(system_prompt) + len(user_query) + 100  # Buffer
+        # User query now appears right after system prompt, so calculate up to end of user query
+        user_query_section = f"{system_prompt}\n\nUser Query: {user_query}"
+        min_length = len(user_query_section) + 100  # Buffer
         
         if len(prompt) <= min_length:
             return prompt
@@ -253,7 +255,7 @@ When responding:
         # Calculate available space for context
         available_space = self.max_context_length - min_length
         
-        # Truncate context sections
+        # Find where context sections start (they come after user query now)
         context_start = prompt.find("## Business Context")
         if context_start == -1:
             context_start = prompt.find("## Relevant Memories")
@@ -289,8 +291,8 @@ When responding:
         # Build memory context
         memory_context = self._build_memory_context_section(memories)
         
-        # Combine
-        prompt = f"{system_prompt}\n\n{memory_context}\n\nUser Query: {user_query}"
+        # Combine with user query at the beginning
+        prompt = f"{system_prompt}\n\nUser Query: {user_query}\n\n{memory_context}"
         
         return prompt
     
@@ -310,8 +312,8 @@ When responding:
         # Build business context
         business_section = self._build_business_context_section(business_context)
         
-        # Combine
-        prompt = f"{system_prompt}\n\n{business_section}\n\nUser Query: {user_query}"
+        # Combine with user query at the beginning
+        prompt = f"{system_prompt}\n\nUser Query: {user_query}\n\n{business_section}"
         
         return prompt
     

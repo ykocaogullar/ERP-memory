@@ -5,7 +5,7 @@
 INSERT INTO domain.customers (customer_id, name, industry, notes) VALUES
 ('550e8400-e29b-41d4-a716-446655440001', 'Gai Media', 'Entertainment', 'Album fulfillment and distribution'),
 ('550e8400-e29b-41d4-a716-446655440002', 'PC Boiler', 'Industrial', 'On-site repair services'),
-('550e8400-e29b-41d4-a716-446655440003', 'TC Boiler', 'Industrial', 'Equipment maintenance')
+('550e8400-e29b-41d4-a716-446655440003', 'Riverbend Fabrication', 'Manufacturing', 'Custom metal fabrication and maintenance')
 ON CONFLICT (customer_id) DO NOTHING;
 
 -- Sales Orders

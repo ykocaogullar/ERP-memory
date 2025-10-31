@@ -74,7 +74,7 @@ def log_retrieval_synthesis(
             f.write(json.dumps(log_entry['synthesized_context']['metadata'], indent=2))
             f.write(f"\n\nMemories ({log_entry['synthesized_context']['memories_count']}):\n")
             for i, memory in enumerate(log_entry['synthesized_context']['memories'], 1):
-                f.write(f"  {i}. [{memory.get('kind', 'unknown')}] {memory.get('text', '')[:100]}\n")
+                f.write(f"  {i}. [{memory.get('kind', 'unknown')}] {memory.get('text', '')[:300]}\n")
             f.write(f"\nBusiness Context ({len(log_entry['synthesized_context']['business_context'])} entities):\n")
             for entity_name, context in log_entry['synthesized_context']['business_context'].items():
                 f.write(f"  {entity_name}:\n")
@@ -82,12 +82,12 @@ def log_retrieval_synthesis(
                     f.write(f"    {json.dumps(context, indent=6, default=str)}\n")
             f.write(f"\nRelationships ({log_entry['synthesized_context']['relationships_count']}):\n")
             for i, rel in enumerate(log_entry['synthesized_context']['relationships'], 1):
-                f.write(f"  {i}. {rel.get('predicate', 'unknown')}: {rel.get('object_value', '')[:100]}\n")
+                f.write(f"  {i}. {rel.get('predicate', 'unknown')}: {rel.get('object_value', '')[:300]}\n")
             f.write(f"\nSemantic Triples ({log_entry['synthesized_context']['semantic_triples_count']}):\n")
-            for i, triple in enumerate(log_entry['synthesized_context']['semantic_triples'][:10], 1):  # Limit to first 10
+            for i, triple in enumerate(log_entry['synthesized_context']['semantic_triples'][:20], 1):  # Limit to first 20
                 f.write(f"  {i}. {triple.get('subject', '')} - {triple.get('predicate', '')} - {triple.get('object', '')}\n")
-            if log_entry['synthesized_context']['semantic_triples_count'] > 10:
-                f.write(f"  ... and {log_entry['synthesized_context']['semantic_triples_count'] - 10} more triples\n")
+            if log_entry['synthesized_context']['semantic_triples_count'] > 20:
+                f.write(f"  ... and {log_entry['synthesized_context']['semantic_triples_count'] - 20} more triples\n")
             f.write("="*80 + "\n")
     except Exception as e:
         # Don't fail the request if logging fails
@@ -108,6 +108,12 @@ def log_llm_prompt(
     ensure_demo_log_dir()
     timestamp = datetime.now().isoformat()
     try:
+        safe_prompt = prompt if isinstance(prompt, str) else ""
+        prompt_length = len(safe_prompt)
+        if not safe_prompt.strip():
+            safe_prompt_display = "[EMPTY PROMPT]"
+        else:
+            safe_prompt_display = safe_prompt
         with open(LLM_PROMPTS_LOG_FILE, 'a', encoding='utf-8') as f:
             f.write("\n" + "="*80 + "\n")
             f.write(f"TIMESTAMP: {timestamp}\n")
@@ -135,8 +141,9 @@ def log_llm_prompt(
                     pass
             f.write("-"*80 + "\n")
             f.write("PROMPT:\n")
+            f.write(f"(length={prompt_length})\n")
             f.write("-"*80 + "\n")
-            f.write(prompt)
+            f.write(safe_prompt_display)
             f.write("\n" + "="*80 + "\n")
     except Exception as e:
         import logging

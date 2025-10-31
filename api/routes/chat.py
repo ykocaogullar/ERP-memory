@@ -70,6 +70,11 @@ async def chat(request: ChatRequest):
         session_id = _create_or_update_session(session_id, user_id)
         logger.info(f"Session ID: {session_id}")
         
+        # Log extracted entities for debugging
+        logger.info(f"Extracted entities details:")
+        for entity in entities:
+            logger.info(f"  - {entity.get('name')} (type={entity.get('type')}, external_ref={entity.get('external_ref')})")
+        
         # Step 3: Build semantic relationships from conversation
         logger.info("Building semantic relationships")
         conv_relationships = relationship_builder.extract_conversational_relationships(
@@ -88,7 +93,7 @@ async def chat(request: ChatRequest):
             max_memories=request.max_memories if request.retrieve_memories else 0,
             include_business_context=True
         )
-        logger.info(f"Synthesized context: {len(synthesized_context.get('memories', []))} memories")
+        logger.info(f"Synthesized context: {len(synthesized_context.get('memories', []))} memories, {len(synthesized_context.get('business_context', {}))} business entities")
         
         # Log to demo log file
         log_retrieval_synthesis(
